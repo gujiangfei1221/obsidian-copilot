@@ -411,16 +411,16 @@ export const BUILTIN_CHAT_MODELS: CustomModel[] = [
   {
     name: ChatModels.SILICONFLOW_DEEPSEEK_V3,
     provider: ChatModelProviders.SILICONFLOW,
-    enabled: false,
-    isBuiltIn: false,
-    baseUrl: "https://api.siliconflow.com/v1",
+    enabled: true,
+    isBuiltIn: true,
+    baseUrl: "https://api.siliconflow.cn/v1",
   },
   {
     name: ChatModels.SILICONFLOW_DEEPSEEK_R1,
     provider: ChatModelProviders.SILICONFLOW,
-    enabled: false,
-    isBuiltIn: false,
-    baseUrl: "https://api.siliconflow.com/v1",
+    enabled: true,
+    isBuiltIn: true,
+    baseUrl: "https://api.siliconflow.cn/v1",
     capabilities: [ModelCapability.REASONING],
   },
 ];
@@ -544,7 +544,7 @@ export const BUILTIN_EMBEDDING_MODELS: CustomModel[] = [
     isBuiltIn: true,
     isEmbeddingModel: true,
     core: true,
-    baseUrl: "https://api.siliconflow.com/v1",
+    baseUrl: "https://api.siliconflow.cn/v1",
   },
 ];
 
@@ -644,10 +644,10 @@ export const ProviderInfo: Record<Provider, ProviderMetadata> = {
   },
   [ChatModelProviders.SILICONFLOW]: {
     label: "SiliconFlow",
-    host: "https://api.siliconflow.com/v1",
-    curlBaseURL: "https://api.siliconflow.com/v1",
-    keyManagementURL: "https://cloud.siliconflow.com/me/account/ak",
-    listModelURL: "https://api.siliconflow.com/v1/models",
+    host: "https://api.siliconflow.cn/v1",
+    curlBaseURL: "https://api.siliconflow.cn/v1",
+    keyManagementURL: "https://cloud.siliconflow.cn/me/account/ak",
+    listModelURL: "https://api.siliconflow.cn/v1/models",
     testModel: ChatModels.SILICONFLOW_DEEPSEEK_V3,
   },
   [ChatModelProviders.OLLAMA]: {

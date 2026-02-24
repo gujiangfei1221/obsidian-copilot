@@ -1,16 +1,40 @@
-import { ABORT_REASON, ModelCapability } from "@/constants";
+import { ABORT_REASON, COMPOSER_OUTPUT_INSTRUCTIONS, ModelCapability } from "@/constants";
 import { LayerToMessagesConverter } from "@/context/LayerToMessagesConverter";
 import { logInfo } from "@/logger";
 import { getSettings } from "@/settings/model";
 import { ChatMessage } from "@/types/message";
 import { findCustomModel, withSuppressedTokenWarnings } from "@/utils";
+import { writeToFileTool } from "@/tools/ComposerTools";
+import { ToolManager } from "@/tools/toolManager";
 import { BaseChainRunner } from "./BaseChainRunner";
+import { ActionBlockStreamer } from "./utils/ActionBlockStreamer";
 import { loadAndAddChatHistory } from "./utils/chatHistoryUtils";
 import { recordPromptPayload } from "./utils/promptPayloadRecorder";
 import { ThinkBlockStreamer } from "./utils/ThinkBlockStreamer";
 import { getModelKey } from "@/aiParams";
 
 export class LLMChainRunner extends BaseChainRunner {
+  /**
+   * Check if the user message contains @composer keyword,
+   * indicating the user wants AI to write/modify files.
+   */
+  private isComposerMode(userMessage: ChatMessage): boolean {
+    const message = userMessage.message || userMessage.originalMessage || "";
+    return message.toLowerCase().includes("@composer");
+  }
+
+  /**
+   * Append COMPOSER_OUTPUT_INSTRUCTIONS to content if @composer is detected.
+   * This teaches the AI to output <writeToFile> XML blocks.
+   */
+  private appendComposerInstructionsIfNeeded(content: string, userMessage: ChatMessage): string {
+    if (!this.isComposerMode(userMessage)) {
+      return content;
+    }
+    const composerPrompt = `<OUTPUT_FORMAT>\n${COMPOSER_OUTPUT_INSTRUCTIONS}\n</OUTPUT_FORMAT>`;
+    return `${content}\n\n${composerPrompt}`;
+  }
+
   /**
    * Construct messages array using envelope-based context (L1-L5 layers)
    * Requires context envelope - throws error if unavailable
@@ -47,12 +71,18 @@ export class LLMChainRunner extends BaseChainRunner {
     // Add user message (L2+L3+L5 merged)
     const userMessageContent = baseMessages.find((m) => m.role === "user");
     if (userMessageContent) {
+      // Append composer instructions if @composer is detected
+      const finalContent = this.appendComposerInstructionsIfNeeded(
+        userMessageContent.content,
+        userMessage
+      );
+
       // Handle multimodal content if present
       if (userMessage.content && Array.isArray(userMessage.content)) {
         // Merge envelope text with multimodal content (images)
         const updatedContent = userMessage.content.map((item: any) => {
           if (item.type === "text") {
-            return { ...item, text: userMessageContent.content };
+            return { ...item, text: finalContent };
           }
           return item;
         });
@@ -61,7 +91,10 @@ export class LLMChainRunner extends BaseChainRunner {
           content: updatedContent,
         });
       } else {
-        messages.push(userMessageContent);
+        messages.push({
+          ...userMessageContent,
+          content: finalContent,
+        });
       }
     }
 
@@ -98,6 +131,16 @@ export class LLMChainRunner extends BaseChainRunner {
 
     const streamer = new ThinkBlockStreamer(updateCurrentAiMessage, excludeThinking);
 
+    // Determine if composer mode is active (user wants file write capability)
+    const composerMode = this.isComposerMode(userMessage);
+    const actionStreamer = composerMode
+      ? new ActionBlockStreamer(ToolManager, writeToFileTool)
+      : null;
+
+    if (composerMode) {
+      logInfo("[LLMChainRunner] Composer mode activated - file write capability enabled");
+    }
+
     try {
       // Construct messages using envelope or legacy approach
       const messages = await this.constructMessages(userMessage);
@@ -125,7 +168,18 @@ export class LLMChainRunner extends BaseChainRunner {
           logInfo("Stream iteration aborted", { reason: abortController.signal.reason });
           break;
         }
-        streamer.processChunk(chunk);
+
+        if (actionStreamer) {
+          // In composer mode: pipe through ActionBlockStreamer first,
+          // which intercepts <writeToFile> blocks and executes file writes,
+          // then pass remaining chunks to ThinkBlockStreamer for display
+          for await (const processedChunk of actionStreamer.processChunk(chunk)) {
+            streamer.processChunk(processedChunk);
+          }
+        } else {
+          // Normal mode: pass chunks directly to ThinkBlockStreamer
+          streamer.processChunk(chunk);
+        }
       }
     } catch (error: any) {
       // Check if the error is due to abort signal
