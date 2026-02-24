@@ -108,17 +108,17 @@ interface ReActLoopResult {
 }
 
 export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
-  private llmFormattedMessages: string[] = []; // Track LLM-formatted messages for memory
-  private lastDisplayedContent = ""; // Track the last content displayed to user for error recovery
+  protected llmFormattedMessages: string[] = []; // Track LLM-formatted messages for memory
+  protected lastDisplayedContent = ""; // Track the last content displayed to user for error recovery
 
   // Agent Reasoning Block state
   private reasoningState: AgentReasoningState = createInitialReasoningState();
   private reasoningTimerInterval: ReturnType<typeof setInterval> | null = null;
   private accumulatedContent = ""; // Track content to include in timer updates
   private allReasoningSteps: Array<{ timestamp: number; summary: string; toolName?: string }> = []; // Full history of all steps
-  private abortHandledByTimer = false; // Flag to prevent duplicate interrupted messages
+  protected abortHandledByTimer = false; // Flag to prevent duplicate interrupted messages
 
-  private getAvailableTools(): StructuredTool[] {
+  protected getAvailableTools(): StructuredTool[] {
     const settings = getSettings();
     const registry = ToolRegistry.getInstance();
 
@@ -142,7 +142,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
    * @param updateFn - Function to call with updated message content
    * @param abortController - AbortController to monitor for user interruption
    */
-  private startReasoningTimer(
+  protected startReasoningTimer(
     updateFn: (message: string) => void,
     abortController?: AbortController
   ): void {
@@ -250,7 +250,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
   /**
    * Stop the reasoning timer and mark reasoning as collapsed.
    */
-  private stopReasoningTimer(): void {
+  protected stopReasoningTimer(): void {
     if (this.reasoningTimerInterval) {
       clearInterval(this.reasoningTimerInterval);
       this.reasoningTimerInterval = null;
@@ -357,6 +357,26 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
    * Execute the autonomous agent workflow end-to-end using native tool calling.
    * Follows the ReAct pattern: Reasoning → Acting → Observation → Iteration
    */
+  /**
+   * Validate access for this agent runner.
+   * Returns true if the user is authorized, false otherwise.
+   * Override in subclasses to change the validation behavior.
+   */
+  protected async validateAccess(): Promise<boolean> {
+    const isPlusUser = await checkIsPlusUser({
+      isAutonomousAgent: true,
+    });
+    return !!isPlusUser;
+  }
+
+  /**
+   * Create a fallback chain runner for when the agent fails.
+   * Override in subclasses to change the fallback behavior.
+   */
+  protected createFallbackRunner(): import("./BaseChainRunner").ChainRunner {
+    return new CopilotPlusChainRunner(this.chainManager);
+  }
+
   async run(
     userMessage: ChatMessage,
     abortController: AbortController,
@@ -372,16 +392,13 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
     this.llmFormattedMessages = [];
     this.lastDisplayedContent = "";
 
-    const isPlusUser = await checkIsPlusUser({
-      isAutonomousAgent: true,
-    });
-
     const chatModel = this.chainManager.chatModelManager.getChatModel();
     const adapter = ModelAdapterFactory.createAdapter(chatModel);
     // Agent mode should never show thinking tokens in the response
     const thinkStreamer = new ThinkBlockStreamer(updateCurrentAiMessage, true);
 
-    if (!isPlusUser) {
+    const hasAccess = await this.validateAccess();
+    if (!hasAccess) {
       await this.handleError(
         new Error("Invalid license key"),
         thinkStreamer.processErrorChunk.bind(thinkStreamer)
@@ -472,9 +489,9 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
         return "";
       }
 
-      logError("Autonomous agent failed, falling back to regular Plus mode:", error);
+      logError("Autonomous agent failed, falling back to fallback mode:", error);
       try {
-        const fallbackRunner = new CopilotPlusChainRunner(this.chainManager);
+        const fallbackRunner = this.createFallbackRunner();
         return await fallbackRunner.run(
           userMessage,
           abortController,
@@ -521,7 +538,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
    * @param _updateLoadingMessage - Unused, kept for potential future use.
    * @returns Context required for the ReAct agent loop.
    */
-  private async prepareAgentConversation(
+  protected async prepareAgentConversation(
     userMessage: ChatMessage,
     chatModel: any,
     _updateLoadingMessage?: (message: string) => void // Unused, kept for potential future use
@@ -625,7 +642,7 @@ export class AutonomousAgentChainRunner extends CopilotPlusChainRunner {
    * ReAct loop for native tool calling.
    * Follows the pattern: Reasoning → Acting → Observation → Iteration
    */
-  private async runReActLoop(params: ReActLoopParams): Promise<ReActLoopResult> {
+  protected async runReActLoop(params: ReActLoopParams): Promise<ReActLoopResult> {
     const {
       boundModel,
       tools,

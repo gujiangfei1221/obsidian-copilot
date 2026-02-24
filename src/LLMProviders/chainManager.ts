@@ -11,6 +11,7 @@ import {
   AutonomousAgentChainRunner,
   ChainRunner,
   CopilotPlusChainRunner,
+  FreeAgentChainRunner,
   LLMChainRunner,
   ProjectChainRunner,
   VaultQAChainRunner,
@@ -290,6 +291,10 @@ export default class ChainManager {
 
     switch (chainType) {
       case ChainType.LLM_CHAIN:
+        // Use FreeAgentChainRunner when autonomous agent is enabled for free users
+        if (settings.enableAutonomousAgent) {
+          return new FreeAgentChainRunner(this);
+        }
         return new LLMChainRunner(this);
       case ChainType.VAULT_QA_CHAIN:
         return new VaultQAChainRunner(this);

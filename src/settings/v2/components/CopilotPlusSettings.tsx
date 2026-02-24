@@ -8,7 +8,6 @@ import { useIsSelfHostEligible, validateSelfHostMode } from "@/plusUtils";
 import { updateSetting, useSettingsValue } from "@/settings/model";
 import { Notice } from "obsidian";
 import React, { useState } from "react";
-import { ToolSettingsSection } from "./ToolSettingsSection";
 
 export const CopilotPlusSettings: React.FC = () => {
   const settings = useSettingsValue();
@@ -104,24 +103,6 @@ export const CopilotPlusSettings: React.FC = () => {
           </Badge>
         </div>
         <div className="tw-flex tw-flex-col tw-gap-4">
-          <div className="tw-pt-4 tw-text-xl tw-font-semibold">Autonomous Agent</div>
-
-          <SettingItem
-            type="switch"
-            title="Enable Autonomous Agent"
-            description="Enable autonomous agent mode in Plus chat. The AI will reason step-by-step and decide which tools to use automatically, improving response quality for complex queries."
-            checked={settings.enableAutonomousAgent}
-            onCheckedChange={(checked) => {
-              updateSetting("enableAutonomousAgent", checked);
-            }}
-          />
-
-          {settings.enableAutonomousAgent && (
-            <>
-              <ToolSettingsSection />
-            </>
-          )}
-
           <div className="tw-pt-4 tw-text-xl tw-font-semibold">Memory (experimental)</div>
 
           <SettingItem

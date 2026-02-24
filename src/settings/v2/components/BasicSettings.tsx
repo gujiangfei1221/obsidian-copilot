@@ -16,6 +16,7 @@ import { Key, Loader2 } from "lucide-react";
 import { Notice } from "obsidian";
 import React, { useState } from "react";
 import { ApiKeyDialog } from "./ApiKeyDialog";
+import { ToolSettingsSection } from "./ToolSettingsSection";
 
 const ChainType2Label: Record<ChainType, string> = {
   [ChainType.LLM_CHAIN]: "Chat",
@@ -312,6 +313,28 @@ export const BasicSettings: React.FC = () => {
             checked={settings.showRelevantNotes}
             onCheckedChange={(checked) => updateSetting("showRelevantNotes", checked)}
           />
+        </div>
+      </section>
+
+      {/* Agent Mode Section */}
+      <section>
+        <div className="tw-mb-3 tw-text-xl tw-font-bold">Agent Mode</div>
+        <div className="tw-space-y-4">
+          <SettingItem
+            type="switch"
+            title="Enable Autonomous Agent"
+            description="Enable autonomous agent mode in Chat and Plus. The AI will reason step-by-step and decide which tools (like web search, file tree, etc.) to use automatically."
+            checked={settings.enableAutonomousAgent}
+            onCheckedChange={(checked) => {
+              updateSetting("enableAutonomousAgent", checked);
+            }}
+          />
+
+          {settings.enableAutonomousAgent && (
+            <div className="tw-border-l tw-border-solid tw-pl-4 tw-border-accent/20">
+              <ToolSettingsSection />
+            </div>
+          )}
         </div>
       </section>
 

@@ -6,6 +6,7 @@ export { VaultQAChainRunner } from "./VaultQAChainRunner";
 export { CopilotPlusChainRunner } from "./CopilotPlusChainRunner";
 export { ProjectChainRunner } from "./ProjectChainRunner";
 export { AutonomousAgentChainRunner } from "./AutonomousAgentChainRunner";
+export { FreeAgentChainRunner } from "./FreeAgentChainRunner";
 
 // Utility exports (for internal use or testing)
 export { ThinkBlockStreamer } from "./utils/ThinkBlockStreamer";

@@ -48,7 +48,9 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
   currentChain,
 }) => {
   const isCopilotPlus = isPlusChain(currentChain);
-  const showAutonomousAgent = isCopilotPlus && currentChain !== ChainType.PROJECT_CHAIN;
+  const isLLMChain = currentChain === ChainType.LLM_CHAIN;
+  const showAutonomousAgent =
+    (isCopilotPlus || isLLMChain) && currentChain !== ChainType.PROJECT_CHAIN;
 
   const handleAutonomousAgentToggle = () => {
     const newValue = !autonomousAgentToggle;
@@ -83,8 +85,8 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
     }
   };
 
-  // If not Copilot Plus, don't show any tools
-  if (!isCopilotPlus) {
+  // If not Copilot Plus and not LLM Chain, don't show any tools
+  if (!isCopilotPlus && !isLLMChain) {
     return null;
   }
 
@@ -114,8 +116,8 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
           </Tooltip>
         )}
 
-        {/* Toggle buttons for vault, web search, and composer - show when Autonomous Agent is off */}
-        {!autonomousAgentToggle && (
+        {/* Toggle buttons for vault, web search, and composer - show when Autonomous Agent is off AND is Copilot Plus */}
+        {!autonomousAgentToggle && isCopilotPlus && (
           <>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -197,8 +199,8 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
               </DropdownMenuItem>
             )}
 
-            {/* Tool options - show when Autonomous Agent is off */}
-            {!autonomousAgentToggle && (
+            {/* Tool options - show when Autonomous Agent is off AND is Copilot Plus */}
+            {!autonomousAgentToggle && isCopilotPlus && (
               <>
                 <DropdownMenuItem
                   onClick={handleVaultToggle}
@@ -236,8 +238,8 @@ const ChatToolControls: React.FC<ChatToolControlsProps> = ({
               </>
             )}
 
-            {/* Tool options - show when Autonomous Agent is on (disabled) */}
-            {autonomousAgentToggle && (
+            {/* Tool options - show when Autonomous Agent is on (disabled) AND is Copilot Plus */}
+            {autonomousAgentToggle && isCopilotPlus && (
               <>
                 <DropdownMenuItem
                   disabled
